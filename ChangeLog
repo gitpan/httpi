@@ -1,3 +1,10 @@
+Changes since 1.2:
+
+	* fixed bug with bad port redirects (where port wasn't 80) --
+		thanks Aaron Spangler
+	* fixed bug with null Host: header when virtual hosting was
+		disabled (thanks Glauber Ribeiro)
+
 Changes since 1.0b2:
 
 	* HTTP/1.1 KeepAlive now removed: Connections all non-persistent.

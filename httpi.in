@@ -6,7 +6,7 @@ Thanks.
 ~
 ~
 #!DEF_PERL
-$VERSION = "1.2 (DEF_CONF_TYPE/DEF_ARCH)";
+$VERSION = "1.2.1 (DEF_CONF_TYPE/DEF_ARCH)";
 
 # HTTPi Hypertext Tiny Truncated Process Implementation
 # Copyright 1999 Cameron Kaiser # All rights reserved # Please read LICENSE
@@ -206,11 +206,8 @@ while (<STDIN>) {
 		next unless ($httpver < 1);
 	} else {
 		s/[\r\l\n\s]+$//;
-~check NAMEREDIR
 		(/^Host: (.+)/i) && ($httphost = $1) && ($httphost =~
 			s/:\d+$//);
-~
-~
 		(/^Referer: (.+)/i) && ($httpref = $1);
 		(/^User-agent: (.+)/i) && ($httpua = $1);
 		(/^Content-length: (\d+)/i) && ($ENV{'CONTENT_LENGTH'} =
@@ -380,7 +377,11 @@ EOF
 ~
 	;
 ~
+~check MDEMONIC
+	&hterror301("http://DEF_SERVER_HOST:DEF_TCP_PORT$address/")
+~
 	&hterror301("http://DEF_SERVER_HOST$address/")
+~
 		if ($address !~ m#/$# && -d $raddress);
 	$raddress = "${raddress}index.html" if (-d $raddress);
 ~check MCANALARM
