@@ -10,7 +10,7 @@ Please make sure it's in the current directory.
 EOF
 
 &prompt(<<"EOF", "");
-Configure (Generic) for HTTPi/1.3 (C)1998-2001 Cameron Kaiser
+Configure (Generic) for HTTPi/$ACTUAL_VERSION (C)1998-2001 Cameron Kaiser
 
 This is a generic configuration script. Do NOT run this if you can run one
 of the other configure scripts.

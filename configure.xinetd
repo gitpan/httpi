@@ -9,7 +9,7 @@ Please make sure it's in the current directory.
 EOF
 
 &prompt(<<"EOF", "") unless ($DEFAULT);
-Configure (xinetd) for HTTPi/1.3 (C)1998-2001 Cameron Kaiser
+Configure (xinetd) for HTTPi/$ACTUAL_VERSION (C)1998-2001 Cameron Kaiser
 
 This is the configure script for xinetd systems. Congratulations, you're
 one of the really groovy people. Rob Braun is doing some hot stuff with it.
