@@ -50,10 +50,11 @@ they'll just override all the types they'll define with the same MIME type.
 ~
 ~check NAMEREDIR
 %nameredir =
-	("stockholm" => "http://stockholm.ptloma.edu",
-	 "www.floodgap.com" => "http://www.floodgap.com:8080",
-	 "httpi.ptloma.edu" => "http://stockholm.ptloma.edu/httpi",
-	 "httpi.floodgap.com" => "http://stockholm.ptloma.edu/httpi");
+	("stockholm" => "http://stockholm.ptloma.edu:8080",
+	 "stockholm.ptloma.edu" => "http://stockholm.ptloma.edu:8080",
+	 "stockholm.floodgap.com" => "http://www.floodgap.com",
+	 "httpi.ptloma.edu" => "http://stockholm.ptloma.edu:8080/httpi",
+	 "httpi.floodgap.com" => "http://www.floodgap.com/httpi");
 ~
 ~
 

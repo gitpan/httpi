@@ -6,10 +6,10 @@ Thanks.
 ~
 ~
 #!DEF_PERL
-$VERSION = "1.3 (DEF_CONF_TYPE/DEF_ARCH)";
+$VERSION = "1.3.1 (DEF_CONF_TYPE/DEF_ARCH)";
 
 # HTTPi Hypertext Tiny Truncated Process Implementation
-# Copyright 1999, 2000 Cameron Kaiser # All rights reserved
+# Copyright 1999-2001 Cameron Kaiser # All rights reserved
 # Please read LICENSE # Do not strip this copyright message.
 
 %system_content_types =
@@ -31,7 +31,9 @@ $VERSION = "1.3 (DEF_CONF_TYPE/DEF_ARCH)";
 	 "class" => "application/octet-stream",
 	 "jar" => "application/octet-stream",
 	 "js" => "application/x-javascript",
+	 "lnk" => "application/x-hyperlink",
 	 "wav" => "audio/x-wav",
+	 "mp3" => "audio/x-mpeg",
 	 "txt" => "text/plain",
 	 "gif" => "image/gif",
 	 "zip" => "application/x-zip-compressed",
@@ -39,6 +41,8 @@ $VERSION = "1.3 (DEF_CONF_TYPE/DEF_ARCH)";
 	 "lha" => "application/octet-stream",
 	 "gz"  => "application/x-gzip",
 	 "mov" => "movie/quicktime",
+	 "mpeg" => "video/mpeg",
+	 "mpg" => "video/mpeg",
 	 "jpeg" => "image/jpeg",
 	 "jpg" => "image/jpeg");
 
@@ -442,7 +446,7 @@ EOF
 	alarm 0;
 ~
 ~
-	if(!open(S, $raddress)) { &hterror404; } else {
+	if(!sysopen(S, $raddress, 0)) { &hterror404; } else {
 		if (-x $raddress) {
 			$currentcode = 100;
 			&log;

@@ -1,3 +1,10 @@
+Changes since 1.3:
+
+	* possible security exploit with malformed URLs containing shell
+	  metacharacters. changed URL-dependent open() statements to sysopen()
+	  to defeat this
+	* additional content types mp3 lnk mpg mpeg
+
 Changes since 1.2.2:
 
 	**** WE'VE MOVED! Look for us at http://httpi.floodgap.com/ ****
