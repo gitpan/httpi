@@ -1,4 +1,4 @@
-$version_key = "HTTPi/1.2";
+$version_key = "HTTPi/1.3";
 $my_version_key = 0;
 
 sub yncheck {

@@ -1,13 +1,18 @@
-Thanks to those who have reported errors and deficiencies in HTTPi:
+Thanks to those who have reported errors and deficiencies in HTTPi,
+contributed code suggestions, and just been generally helpful folks:
 
 Bill Benedetto (since 0.1 :-)
 Fergus Gallagher
 Marc Slemko
 Aaron Spangler
 Glauber Ribeiro
+Marcus Kreutzberger
+Henry Ptasinski
+
+See the ChangeLog for specific contributions and notes from users.
 
 User feedback is very much appreciated. Please send all comments and
 bug reports to
 
-	httpi@stockholm.ptloma.edu
+	httpi@floodgap.com
 
