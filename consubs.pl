@@ -1,3 +1,6 @@
+$version_key = "HTTPi/1.2";
+$my_version_key = 0;
+
 sub yncheck {
 	local ($prompt, $evals, $fatal) = (@_);
 	local $setv;
@@ -38,15 +41,20 @@ sub wherecheck {
 }
 
 sub preproc {
-	local($infile, $outfile, $fatal) = (@_);
-	local $ifl, $def, $j;
-	open(S, "$infile") || (print($fatal), exit);
-	open(T, ">$outfile") || (print($fatal), exit);
+	local ($mf) = (@_);
+	local $kvbuf, $ifl;
 
 	$ifl = 0;
-	while(<S>) {
+	while(<$mf>) {
+		chomp;
+		if (/^~$/) {
+			next if (!$ifl);
+			$ifl = abs($ifl);
+			$ifl--;
+			next;
+		}
+		next if ($ifl > 0);
 		if (/^~check/) {
-			chomp;
 			(/^~check (.+)$/) && ($def = $1);
 			eval "\$j = \$DEF_$def;";
 			if ($j) {
@@ -56,19 +64,24 @@ sub preproc {
 			}
 			next;
 		}
-		if (/^~/) {
-			$ifl = abs($ifl);
-			$ifl--;
+		if (/^~insert/) {
+			(/^~insert (.+)$/) && ($def = $1);
+			open(Q, $def) || (print(stdout <<"EOF"), exit);
+
+COMPILATION FAILURE: Could not include file $def.
+($@ $!)
+
+EOF
+			$kvbuf .= &preproc(\*Q);
+			close(Q);
 			next;
 		}
-		next if ($ifl > 0);
 		while((/(DEF_[A-Z_]+)/) && ($def = $1)) {
 			eval "s/DEF_[A-Z_]+/\$$def/";
 		}
-		print T $_;
+		$kvbuf .= "$_\n";
 	}
-	close(S);
-	close(T);
+	return $kvbuf;
 }
 
 sub prompt {
@@ -107,6 +120,28 @@ EOF
 		open(P, "$ARGV[1]");
 		while(<P>) {
 			chomp;
+			if (!$my_version_key) {
+				$my_version_key = $_;
+				if ($my_version_key ne $version_key) {
+					$my_version_key =
+						"0.99 or earlier"
+						if ($my_version_key !~
+							/^HTTPi/);
+					print <<"EOF";
+Whoops, screeching halt time, bud.
+
+This is a transcript file from an earlier and incompatible HTTPi configure
+sequence (looks like version $my_version_key).
+
+Since the question sequence and possible choices have changed, the responses
+you gave in this transcript file are no longer valid. Please start over and
+run $0 from scratch.
+
+EOF
+					exit;
+				}
+				next;
+			}
 			push(@answers, $_);
 		}
 		close(P);
@@ -116,14 +151,16 @@ EOF
 }
 
 unless ($DEFAULT) {
-	$p=0; while(-e "transcript.$p.$0") { $p++; }
-	open(L, ">transcript.$p.$0") || (print(<<"EOF"), exit);
+	($0 =~ m#/?([^/]+)$#) && ($f = $1);
+	$p=0; while(-e "transcript.$p.$f") { $p++; }
+	open(L, ">transcript.$p.$f") || (print(<<"EOF"), exit);
 
-Can't open transcript file transcript.$p.$0 for write.
+Can't open transcript file transcript.$p.$f for write.
 Check your permissions on that file or directory.
 
 EOF
 	select(L); $|++; select(stdout);
+	print L "$version_key\n";
 }
 
 1;
