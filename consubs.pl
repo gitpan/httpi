@@ -1,6 +1,37 @@
-$version_key = "HTTPi/1.6/$DEF_CONF_TYPE";
+$version_key = "HTTPi/1.7/$DEF_CONF_TYPE";
 $my_version_key = 0;
-$ACTUAL_VERSION = "1.6.1 (C)1998-2009 Cameron Kaiser";
+$ACTUAL_VERSION = "1.7 (C)1998-2010 Cameron Kaiser/Contributors";
+
+print STDOUT "HTTPi/$ACTUAL_VERSION\n";
+print STDOUT "Pre-flight check in progress ...\n\n";
+
+#require "./Mpp.pm"; # use fails -T
+#$parser = new Mpp;
+
+# detaint our path. this is slightly risky, but we assume you know what
+# you're doing.
+$nupath = &detaint($ENV{'PATH'});
+if ($nupath =~ /(^|:)\./) {
+	1 while ($nupath =~ s#(^|:)[^/][^:]*##);
+	1 while ($nupath =~ s#:[^/][^:]+$##);
+	&prompt(<<"EOF", "");
+*** WARNING: Portions of your PATH have relative paths in them ***
+This is considered potentially unsafe by the installer, and these paths have
+been removed temporarily during this run of the configure script.
+
+Your path WAS:
+	$ENV{'PATH'}
+
+Your path now TEMPORARILY IS:
+	$nupath
+
+If you require these paths to find tools, press CONTROL-C now and fix your
+PATH, then re-run this configure script.
+
+Otherwise, press RETURN or ENTER to continue.
+EOF
+}	
+$ENV{'PATH'} = $nupath;
 
 sub detaint { # sigh
 	my ($w) = (@_);
@@ -53,15 +84,15 @@ sub preproc {
 	$ifl = 0;
 	while(<$mf>) {
 		chomp;
-		if (/^~$/) {
+		if (/^~$/ || /^~\s*#/) { # ignore trailing comments
 			next if (!$ifl);
 			$ifl = abs($ifl);
 			$ifl--;
 			next;
 		}
 		next if ($ifl > 0);
-		if (/^~check/) {
-			(/^~check (.+)$/) && ($def = $1);
+		if (/^~(if|check)/) {
+			(/^~(if|check) (.+)$/) && ($def = $2);
 			@ldefs = split(/,\s*/, $def);
 			$j=0;
 			foreach $def (@ldefs) {
@@ -116,6 +147,33 @@ EOF
 	printf(L "%s\n", $entry) if ($dontcare && !$DEFAULT);
 	return $entry;
 }			
+
+sub inter_homedir {
+	# based on an idea by Mark Olesen
+	my $w = &detaint(shift);
+	my $x = $w;
+	$x =~ s#^~/#\$ENV{'HOME'}/#; # so that interpolation occurs
+	my $w = '';
+	eval qq{ \$w = "$x"; };
+	return ($w, $@);
+}
+
+sub interprompt {
+	my($prompt, $default, $dontcare, $interpolator) = (@_);
+
+	while(1) {
+		my $k = &prompt($prompt, $default, $dontcare);
+		my ($l, $err) = &$interpolator($k);
+		if (length($l)) {
+			print "(expanded to $l)\n\n" if ($l ne $k);
+			return $l;
+		} else {
+			print "Your expression made no sense: $@";
+			print "Try again, with feeling.\n\n";
+		}
+	}
+	die("not reached\n");
+}
 
 if ($ARGV[0] =~ /^--?d/) {
 	print <<"EOF";
@@ -172,6 +230,7 @@ unless ($DEFAULT) {
 	open(L, ">transcript.$p.$f") || (print(<<"EOF"), exit);
 
 Can't open transcript file transcript.$p.$f for write.
+(Error was $!)
 Check your permissions on that file or directory.
 
 EOF
@@ -189,6 +248,7 @@ sub firstchecks {
 	"Hmm. This might not be a Unix box, but we'll keep trying.\n";
 		$DEF_ARCH = "???";
 	}
+	$HOSTNAME = &wherecheck('Finding hostname', 'hostname');
 
 	$didnt_work = 1;
 	PERLCHEK: while($didnt_work) {
@@ -205,7 +265,8 @@ here; it will be probed and then put in HTTPi's #! line.
 ... 
 EOF
 		print "Checking out your Perl ...\n";
-		$test_script = 'print"$] ";eval"use POSIX";print"$@"';
+		$DEF_PERL = &detaint($DEF_PERL);
+		$test_script = 'print"$] ";eval"use POSIX ()";print"$@"';
 		if(!open(Q, "$DEF_PERL -e '$test_script'|")) {
 			print "Failed to execute $DEF_PERL ... $!\n";
 			print "Let's try that again.\n\n";
@@ -269,13 +330,15 @@ EOF
 				if ($PERL_VERSION < 5.008);
 		} else {
 			print <<"EOF";
-Just a warning; this Perl can't dredge up POSIX.pm ($pox).
+Just a warning; I can't use POSIX.pm with this Perl ($pox).
 We'll use \$SIG-based signaling instead, though this may be less reliable.
 EOF
 		}
 		$didnt_work = 0;
 	}
 }
+
+print STDOUT "\nOk, starting the configure system.\n\n";
 
 1;
 

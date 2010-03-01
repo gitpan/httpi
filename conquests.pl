@@ -1,4 +1,3 @@
-$HOSTNAME = &wherecheck('Finding hostname', 'hostname');
 $DEF_MCANALARM = &yncheck('Can we use alarm()?', 'alarm 0;');
 unless ($DEF_CANFORK) {
 $DEF_CANFORK = $q = &yncheck("Can we fork()?",
@@ -38,7 +37,8 @@ right. Common sense is a virtue :-)
 Press RETURN or ENTER to continue.
 EOF
 
-$INSTALL_PATH = &prompt(<<"EOF", "/usr/local/bin/httpi", 1);
+$INSTALL_PATH =
+	&interprompt(<<"EOF", "/usr/local/bin/httpi", 1, \&inter_homedir);
 Where do you want the resultant script placed? If you're using configure to
 build multiple instances of HTTPi on different ports, make sure this changes
 unless you're darn certain that they'll all be configured the same way.
@@ -47,6 +47,10 @@ IP ADDRESSES, THIS *MUST* BE DIFFERENT IN EACH CASE!
 
 If you are doing a full install to update the configuration files for
 launchd/inetd/xinetd/stunnel/etc. simultaneously, THE PATH MUST BE ABSOLUTE!
+
+You can use Perl variables for this option (example: \$ENV{'HOME'}/bin/httpi).
+As a shortcut, ~/ in first position will be turned into \$ENV{'HOME'}/,
+which is "$ENV{'HOME'}/".
 
 Install path?
 EOF
@@ -113,18 +117,25 @@ doesn't need to ask (besides, it's pretty Unix-centric as it is anyhow).
 System AF_INET constant (nearly invariably 2)?
 EOF
 }
-$DEF_HTDOCS_PATH = &prompt(<<"EOF", "/usr/local/htdocs", 1);
+$DEF_HTDOCS_PATH =
+	&interprompt(<<"EOF", "/usr/local/htdocs", 1, \&inter_homedir);
 Where do you want the server to serve documents from? All files that HTTPi
 will make available, executables included, must be under this tree (except
 for the user filesystem option if enabled, coming up shortly). This is the
 webserver's mount directory.
 
+You can use Perl variables for this option (example: \$ENV{'HOME'}/bin/httpi).
+As a shortcut, ~/ in first position will be turned into \$ENV{'HOME'}/,
+which is "$ENV{'HOME'}/".
+
+Mount point?
 EOF
 print <<"EOF" if (!-d $DEF_HTDOCS_PATH);
 WARNING: That directory hasn't been created yet. Make sure you create it.
 
 EOF
-$DEF_ACCESS_LOG = &prompt(<<"EOF", "$DEF_HTDOCS_PATH/access.log", 1);
+$DEF_ACCESS_LOG =
+  &interprompt(<<"EOF", "$DEF_HTDOCS_PATH/access.log", 1, \&inter_homedir);
 
 Where do you want the server to put the access log? If you don't want
 logging, specify /dev/null. This is the webserver's log file path.
@@ -134,6 +145,11 @@ served to a client. Sometimes this is useful, and sometimes this is an
 information hole. If this is not desirable to you, make sure the log is not
 located under the webserver's mount point.
 
+You can use Perl variables for this option (example: \$ENV{'HOME'}/bin/httpi).
+As a shortcut, ~/ in first position will be turned into \$ENV{'HOME'}/,
+which is "$ENV{'HOME'}/".
+
+Log path?
 EOF
 print <<"EOF";
 WARNING: Make sure the access log is writeable, or there won't be much in it.
@@ -352,30 +368,39 @@ EOF
 
 $DEF_NAMEREDIR = (($q eq 'y') ? 1 : 0);
 
-$q = &prompt(<<"EOF", "y", 1);
-The New Security Model, introduced in 1.4, adds a additional level of control
-over how files are served.
+$q = &prompt(<<"EOF", "n", 1);
+New in HTTPi 1.7 is the ability to use PATH_INFO (and have executables make
+up "virtual filesystems" just like in other webservers). If you already know
+what this is, you'll already be pressing y(es), but this function is currently
+experimental. Because it has the potential for collision problems, you should
+not enable it unless you think you need it, and it currently defaults to n.
 
-In the older model, HTTPi only changed uid for executables. In this model,
-HTTPi changes uid for *all* files, meaning even preparsed documents cannot
-take over the webserver. Furthermore, you can specify a uid for which it and
-all UIDs lower, is illegal: the server will not change uid to them, and will
-not, as a consequence, serve files owned by them (root uid is always illegal)
+Enable PATH_INFO support?
+EOF
+
+$DEF_PATHINFO = (($q eq 'y') ? 1 : 0);
+
+&prompt(<<"EOF", "");
+
+Now for the security section.
+
+Starting with HTTPi 1.7, if you are running as root, HTTPi transforms itself
+into the owner of the document it is accessing, even if it is not executable.
+This means that as soon as content serving begins, a document (even parsable)
+can't take over the webserver. Furthermore, you can specify a uid for which it
+and all UIDs lower, is illegal: the server won't change uid to them and also
+won't, as a consequence, serve files owned by them (root uid is always illegal)
 or run executables on behalf of them (again, root uid is always illegal too).
 Other consequences exist -- PLEASE READ THE DOCUMENTATION FIRST.
 
-The New Security Model is ONLY SALIENT IF YOU RUN HTTPi AS ROOT. Otherwise,
-it simply adds bulk and overhead. It is also only relevant to Un*xy worlds.
+Even if you do not run HTTPi as root, certain security restrictions are
+still enforced for you, even if HTTPi cannot transform its uid (but it still
+may be more secure overall for you to run as an unprivileged user, so your
+decision should be made based on your overall local requirements).
 
-As of 1.5, the New Security Model is now well-tested enough that it is the
-strongly recommended default. It may break old installations, so the choice
-is still offered, but if you use the user filesystem or preparsing and you
-are running your server as root, it is strongly recommended.
-
-Use the New Security Model?
+Press RETURN/ENTER to continue.
 EOF
-$DEF_MNSECMODEL = (($q eq 'y') ? 1 : 0);
-if ($DEF_MNSECMODEL) {
+
 	$eUID = ($>) ? $> : ($ENV{'SUDO_UID'} || 0);
 	$is_not_root = (!$> && $ENV{'SUDO_UID'}) ? 'pre-sudo ' : '';
 	$useful = ($eUID) ? " (FYI: your ${is_not_root}euid is $eUID)" : "";
@@ -401,7 +426,6 @@ as the minimum UID is meaningless.
 
 Lowest UID to serve files${useful}?
 EOF
-}
 
 if (!&yncheck("Can we use getpwnam()?",
 	"print scalar(getpwnam('root')), ' ... '")) {
@@ -421,9 +445,8 @@ between the root server documents and users', so users may also run executables
 (and if HTTPi can't change its uid to the executable's owner, this could be
 a rather large security hole). For this reason, this option defaults to no.
 
-If you have the New Security Model on, *and* you're running as root, HTTPi
-will also change its UID to match the document's, which is useful for
-protecting things like /etc/passwd, and for preparsing.
+If you are running as root, HTTPi can change its uid to the document's, which
+is useful for protecting things like /etc/passwd, and for preparsing.
 
 Enable user filesystem?
 EOF
@@ -438,8 +461,8 @@ access server internals.
 Preparsing is done only on files with extensions .sht, .shtm and .shtml, 
 unless you say otherwise.
 
-UNLESS YOU HAVE THE NEW SECURITY MODEL ON *AND* YOU'RE RUNNING HTTPi AS ROOT,
-preparsing runs as the UID of the webserver and this can be a *huge* security
+UNLESS YOU ARE RUNNING HTTPi AS ROOT, PREPARSING CAN BE VERY DANGEROUS! --
+preparsing then runs with the webserver uid and this can be a *huge* security
 hole if enabled with the user filesystem. Enable only if you really trust
 your users, or if you will be the sole person creating content for HTTPi (or
 if you're running HTTPi as some unprivileged user that can't do anything
@@ -493,7 +516,8 @@ Use throttling?
 EOF
 $DEF_MTHROTTLE = ($q eq 'y') ? 1 : 0;
 unless ($DEF_MTHROTTLE) {
-	print "Hmm, bandwidth leeches ahoy, eh? ;-)\nSkipping onward ...\n\n";
+	print "Hmm, bandwidth leeches ahoy, eh? ;-)\nSkipping onward ...\n\n"
+		unless ($DEFAULT);
 	$DEF_READBUFFER = 32768;
 	$DEF_THROTWAIT = 0;
 } else {
@@ -586,6 +610,11 @@ though you might need it.
 
 EOF
 }
+
+# prompt for extra custom variables/configuration (if they exist)
+# place at the end of our normal list to avoid compatibility issues
+eval 'require "custom-config.pl";';
+
 # leave alone
 1;
 

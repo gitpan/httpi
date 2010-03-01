@@ -15,15 +15,19 @@ EOF
 ~
 #!DEF_PERL
 ~check MUSEPOSIX
-use POSIX;
+use POSIX qw(SIGALRM SIGTERM sigaction);
 ~
 $ENV{'PERL_SIGNALS'} = "unsafe";
 ~
-$VERSION = "1.6.1 (DEF_CONF_TYPE/DEF_ARCH)";
+$VERSION = "1.7 (DEF_CONF_TYPE/DEF_ARCH)";
 
 # HTTPi Hypertext Tiny Truncated Process Implementation
-# Copyright 1999-2009 Cameron Kaiser # All rights reserved
+# Copyright 1999-2010 Cameron Kaiser and Contributors # All rights reserved
 # Please read LICENSE # Do not strip this copyright message.
+
+###############################################################
+# WHITE HATS ONLY BELOW THIS POINT -- SEE DOCUMENTATION FIRST #
+###############################################################
 
 %system_content_types =
 	("html" => "text/html",
@@ -36,6 +40,7 @@ $VERSION = "1.6.1 (DEF_CONF_TYPE/DEF_ARCH)";
 ~
 	 "txt" => "text/plain",
 	 "xml" => "text/xml",
+	 "xsl" => "text/xml",
 	 "xhtml" => "application/xhtml+xml",
 	 "css" => "text/css",
 	 "wml" => "text/vnd.wap.wml",
@@ -104,6 +109,16 @@ $VERSION = "1.6.1 (DEF_CONF_TYPE/DEF_ARCH)";
 $logfile = "DEF_ACCESS_LOG";
 $path = "DEF_HTDOCS_PATH";
 $sockaddr = 'S n a4 x8';
+~check MFALSE
+
+*** For convenience, the server host and port are provided as variables
+    but the hardwired values are still used in the remaining code.
+    This might change in the future.
+
+~
+~
+$server_host = "DEF_SERVER_HOST";
+$server_port = "DEF_TCP_PORT";
 
 ~insert uservar.in
 
@@ -114,7 +129,7 @@ undef %system_content_types;
 while (($file, $arrayref) = each(%virtual_files)) {
 	my ($mime, $type, $block) = (@{ $arrayref });
 	next if ($type ne 'FILE');
-	if(open(S, "$block")) {
+	if(sysopen(S, "$block", 0)) {
 		$j = $/; undef $/; $virtual_files{$file}->[2] = scalar(<S>);
 		$/ = $j; close(S);
 	} else {
@@ -138,10 +153,6 @@ $0 = "httpi: handling request";
 ~
 
 $statiosuptime = time();
-
-###############################################################
-# WHITE HATS ONLY BELOW THIS POINT -- SEE DOCUMENTATION FIRST #
-###############################################################
 
 sub sock_to_host {
 ~check MFALSE
@@ -264,16 +275,19 @@ sub log {
 $hostname - $httpuser [$date] "$method $q HTTP/$httpver" $currentcode $contentlength "$httpref" ""
 ~
 ~
+~#end  ORIG_LOG
 ~check GROSS_LOG
 		print J <<"EOF";
 $hostname - $httpuser [$date] "$method $q HTTP/$httpver" $currentcode $contentlength "$httpref" "$httpua"
 ~
 ~
+~#end  GROSS_LOG
 ~check TERSE_LOG
 		print J <<"EOF";
 $hostname - $httpuser [$date] "$method $q HTTP/$httpver" $currentcode $contentlength "" ""
 ~
 ~
+~#end  TERSE_LOG
 EOF
 		close(J);
 	}
@@ -292,7 +306,7 @@ sub byebye { kill(9,$secondary_pid) if ($secondary_pid); exit; }
 sub dead {
 	&htsponse(500, "Server Error");
 	&hterror("Server Error", <<"EOF");
-The server cannot comply with your request for resource <tt>$address</tt>.
+The server cannot comply with your request for resource <tt>$::address</tt>.
 Please attempt to notify the administrators.
 <p>Useful(?) debugging information:
 <pre>
@@ -391,7 +405,6 @@ while (<STDIN>) {
 				substr($1, 0, 255));
 		(/^Accept:\s+(.+)/i) &&
 			($ENV{'HTTP_ACCEPT'} = substr($1, 0, 255));
-		# Accept-Encoding, etc.
 		(/^Accept-([a-zA-Z0-9]+):\s+(.+)/i) &&
 			($ENV{'HTTP_ACCEPT_'.uc(substr($1, 0, 16))} =
 				substr($2, 0, 255));
@@ -412,8 +425,8 @@ while (<STDIN>) {
 		&log; exit;
 	}
 	if ($method !~ /^(GET|HEAD|POST)$/) {
-		&htsponse(501, "Illegal Method");
-		&hterror("Illegal Method",
+		&htsponse(501, "Not Implemented");
+		&hterror("Not Implemented",
 			"Only GET, HEAD and POST are supported.");
 		&log; exit;
 	}
@@ -504,7 +517,7 @@ EOF
 		&htsponse(200, "OK");
 		$contentlength = 0; # kludge
 		&log;
-		if(open(S, $logfile)) {
+		if(sysopen(S, $logfile, 0)) {
 			seek(S, -5000, 2);
 			undef $/;
 			$logsnap = <S>;
@@ -531,7 +544,7 @@ EOF
 HTTPi Status for Server DEF_SERVER_HOST
 </title>
 <meta name="robots" content="noindex,nofollow">
-<META NAME="Googlebot" CONTENT="noindex,nofollow">
+<meta name="Googlebot" content="noindex,nofollow">
 </head>
 <body bgcolor = "#ffffff" text = "#000000" vlink = "#0000ff" link = "#0000ff">
 <h1>HTTPi Server Status (<code>$VERSION</code>)</h1>
@@ -581,15 +594,45 @@ EOF
 	;
 ~
 	1 while ($raddress =~ s#//#/#);
-~check MDEMONIC
-	&hterror301("http://DEF_SERVER_HOST:DEF_TCP_PORT$address/")
-~
+~check MGENERIC
 	&hterror301("http://DEF_SERVER_HOST$address/")
+~
+	&hterror301("http://DEF_SERVER_HOST:DEF_TCP_PORT$address/")
 ~
 		if ($address !~ m#/$# && -d $raddress);
 	$raddress = (-r "${raddress}index.shtml") ?
 		"${raddress}index.shtml" : "${raddress}index.html"
 			if (-d $raddress);
+~check PATHINFO
+	if (! -e $raddress && ! -d $raddress
+			&& $raddress =~ m#^(.+)/$#
+			&& -x $1) {
+		$raddress = $1;
+		$ENV{'PATH_INFO'} = '/';
+	}
+	if (! -e $raddress) {
+		my $oldraddress = $raddress;
+		my @path_array = split('/', $raddress);
+		my @path_info = ();
+		my $k;
+
+		while(scalar(@path_array) &&
+				((! -e $raddress) || (-d $raddress))) {
+			unshift(@path_info, pop(@path_array));
+			$raddress = join('/', @path_array);
+		}
+		if (scalar(@path_array) && (-x $raddress)) {
+			$ENV{'PATH_INFO'} = '/' . join('/', @path_info);
+			# change $address accordingly
+			$address = substr($address, 0,
+				length($address) - length($ENV{'PATH_INFO'}));
+		} else {
+			$raddress = $oldraddress; # prepare to fail
+			$ENV{'PATH_INFO'} = '';
+		}
+	}
+~
+~
 	IRED: ($hostname, $port, $ip) = &sock_to_host();
 	if(!sysopen(S, $raddress, 0)) { &hterror404; } else {
 		if ((-x $raddress) 
@@ -598,7 +641,7 @@ EOF
 ~
 ~
 			) {
-			$currentcode = 100; &log; &nsecmodel;
+			$currentcode = 100; &nsecmodel;
 			$ENV{'REQUEST_METHOD'} = $method;
 			$ENV{'SERVER_NAME'} = "DEF_SERVER_HOST";
 			$ENV{'SERVER_PROTOCOL'} = "HTTP/$httpver";
@@ -620,7 +663,7 @@ EOF
 			$ENV{'HTTP_USER_AGENT'} = $httpua;
 			$ENV{'HTTP_REFERER'} = $httpref;
 ~check MDEMONIC
-			undef $pid; #explicit
+			undef $pid;
 			if ($pid = fork()) { kill 15, $$; exit; }
 			elsif (!defined($pid)) {
 				die
@@ -632,7 +675,9 @@ EOF
 				require $raddress;
 				exit;
 ~
-				if ($method eq 'POST') { # needs stdin
+				$ENV{'PATH'} = '';
+				($raddress =~ /^(.+)$/) && ($raddress = $1);
+				if ($method eq 'POST') { 
 					open(W, "|$raddress") || die
 						"can't POST to $raddress";
 					read(STDIN, $buf, $httpcl);
@@ -680,26 +725,22 @@ SERVEIT:
 		} else {
 ~
 ~
-~check MNSECMODEL
-		$contentlength ||= $length; &nsecmodel;
-~
-~
-		&htsponse(200, "OK");
-		&hthead("Last-Modified: $mtime");
-		&log;
+		$contentlength ||= $length;
 ~check MPREPARSE
 		if ($raddress =~ /\.sDEF_PREGEXPAhtm?l?/i) {
-~
-~
-~check MPREPARSE
+			$currentcode = 200; &nsecmodel; # kludge
 			$j = $/; undef $/; $q = <S>; $/ = $j; close(S);
 			1 while ($fbuf = '',
-				$q =~ s#<perl>(.+?)</perl>#eval"$1"#es);
+		$q =~ s#<perl>(.+?)</perl>#eval"$1" || $@ || ''#es);
+			&htsponse(200, "OK");
 			&htcontent($q, $ctype);
 		} else {
 ~
 ~
+			&htsponse(200, "OK");
+			&hthead("Last-Modified: $mtime");
 			&htcontent("", $ctype, $length);
+			&nsecmodel;
 			$bytecount = 0;
 			unless ($method eq 'HEAD') {
 				while(!eof(S)) {
@@ -727,10 +768,6 @@ SERVEIT:
 ~
 ~
 	}
-~check MNSECMODEL
-~
-	&log;
-~
 	exit;
 }
 
@@ -743,23 +780,23 @@ exit;
 ~check MPREPARSE
 sub output { $fbuf .= "@_"; }
 sub flush { $fbuf1 = $fbuf; $fbuf = ''; return $fbuf1; }
-sub include { if(open(INC, "@_")) { &output(join('', (<INC>))); close(INC); }
-	else { &output("<!-- $! -->\n"); } }
+sub include {
+	if(sysopen(INC, "@_", 0)) {
+		&output(join('', (<INC>))); close(INC);
+	} else {
+		&output("<!-- $! -->\n");
+	}
+}
 sub finclude { &include(@_); return &flush; }
 ~
 ~
 
 sub nsecmodel {
-~check MNSECMODEL
+	&log;
 	($x,$x,$x,$x,$uid,$gid) = stat(S);
 	(!$uid || !$gid || $uid < DEF_NSECUID) &&
 		die "resource is root-owned, secured or not stat-able\n";
 	if (!$<) {
-~
-	if (!$<) {
-		($x,$x,$x,$x,$uid,$gid) = stat(S);
-		(!$uid || !$gid) && die "file is root-owned\n";
-~
 ~check CANDOSETRUID
 		($) = "$gid $gid") || die "can't set egid to $gid";
 		($> = $uid) || die "can't set euid to $uid";
@@ -829,6 +866,7 @@ for (;;) {
 		$addr=accept(NS,S);
 		open(STDIN, "<&NS");
 		open(STDOUT, ">&NS");
+		&defaultsignals;
 		&master;
 		exit;
 	}
